@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>TAPS 103: A Choose-Your-Own-Reflection</title>
+<style>
+  :root{--bg:#f7f7fb;--card:#ffffff;--muted:#666;--accent:#5b6cff}
+  body{font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial; background:var(--bg); margin:0; padding:24px; color:#111}
+  .wrap{max-width:900px;margin:0 auto}
+  header{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+  h1{font-size:20px;margin:0}
+  .card{background:var(--card);padding:20px;border-radius:12px;box-shadow:0 8px 20px rgba(20,20,50,.06)}
+  .scene-text{font-size:18px;line-height:1.5;color:#111;margin-bottom:18px;white-space:pre-wrap}
+  .choices{display:flex;flex-direction:column;gap:10px}
+  button.choice{background:#fff;border:1px solid #e6e6f2;padding:12px 14px;border-radius:10px;text-align:left;font-size:16px;cursor:pointer}
+  button.choice:hover{border-color:var(--accent);box-shadow:0 6px 14px rgba(90,100,255,.08)}
+  .meta{display:flex;justify-content:space-between;align-items:center;margin-top:12px;color:var(--muted);font-size:14px}
+  .controls{display:flex;gap:8px}
+  .small{font-size:13px;color:var(--muted)}
+  footer{margin-top:12px;text-align:right;color:var(--muted);font-size:13px}
+  .progress{height:8px;background:#eef0ff;border-radius:999px;overflow:hidden}
+  .progress > i{display:block;background:linear-gradient(90deg,var(--accent),#2db6ff);height:100%;width:0%}
+  @media (max-width:600px){.scene-text{font-size:16px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="card" style="padding:12px 16px;border-radius:10px;">
+      <strong>TAPS 103</strong><div class="small">Choose Your Own Reflection</div>
+    </div>
+    <div style="flex:1"></div>
+    <div class="small">Tip: press 1,2,3 to pick choices</div>
+  </header>
+
+  <div id="main" class="card">
+    <div id="scene" aria-live="polite">
+      <!-- rendered here -->
+    </div>
+
+    <div style="margin-top:12px" class="meta">
+      <div class="controls">
+        <button id="backBtn" class="small"> &lt Back</button>
+        <button id="restartBtn" class="small">&lt&lt Restart</button>
+      </div>
+      <div style="width:220px">
+        <div class="progress" title="progress">
+          <i id="progBar"></i>
+        </div>
+      </div>
+    </div>
+    <footer>Fall 2025</footer>
+  </div>
+</div>
+
+<script>
+
+/*
+  Scenes format:
+  id: string
+  title: optional
+  text: string
+  choices: [{ text: string, target: id }]
+  end: optional boolean 
+*/
+
+const SCENES = {
+  start: {
+    title: "Walking With Apprehension",
+    text: `It's the beginning of the quarter. You walk the twenty minutes across campus from your dorm to class and feel a knot in your stomach.\nWords often fail you: your mind thinks in images and structures. What do you do?`,
+    choices: [
+      { text: "Observe quietly: learn the vibes first", target: "observe" },
+      { text: "Let's play!", target: "objectPlay"}
+    //   { text: "Push yourself: try a small, silly moment", target: "trySmall" }
+    ]
+  },
+
+  observe: {
+    title: "Observing",
+    text: `You sit back and watch. The class feels like a community you joined late (you missed some critical first few classes). You notice little commitments: people going for it.\nYou begin to see that effort matters more than skill.`,
+    choices: [
+      { text: "Try a low-stakes exercise next class", target: "trySmall" },
+      { text: "Keep observing: let the comfort build", target: "comfort" }
+    ]
+  },
+
+  trySmall: {
+    title: "Low-stakes Try",
+    text: `You do it on Friday: you volunteered for a scene and said something silly, made a strange choice. It's awkward: but it's met with warmth and a bit of surprise. Sebastian's mantra echoes: 'commitment is key.'`,
+    choices: [
+      { text: "Do more: double down on playing bigger", target: "playBigger" },
+      { text: "Be cautious: that was a lot!", target: "comfort" }
+    ]
+  },
+
+  comfort: {
+    title: "Comfort Zone",
+    text: `You let comfort win. You still learn by watching. You appreciate the group but remain cautious.`,
+    choices: [
+      { text: "Next week, force yourself to accept one scene", target: "forcedScene" },
+      { text: "Play it safe. ", target: "metamorphicCircle"}
+    ]
+  },
+
+  forcedScene: {
+    title: "Thrown Into The Scene",
+    text: `You're thrown into a scene with no time to prepare. Low-stakes, high-pressure, but the pressure removes overthinking: you commit and see what happens.`,
+    choices: [
+      { text: "Notice how being 'bigger' helps others play with you", target: "playBigger" },
+      { text: "Reflect: how do you take this into other areas of life?", target: "balance" }
+    ]
+  },
+
+  playBigger: {
+    title: "Playing Bigger",
+    text: `You try to take up space. You learn that making yourself bigger gives others material to play with and invites connection.`,
+    choices: [
+      { text: "Make a promise to revisit 'Try This' from Patricia's book", target: "promise" },
+      { text: "Endow a relationship or characteristic with your scene partner!", target: "characterPlay"}
+    ]
+  },
+  characterPlay: {
+    title: "Character Choices",
+    text: `What character do you want to play?`,
+    choices: [
+      { text: "Let's play with status", target: "status" },
+      { text: "Maybe the narrator?", target: "narration" },
+      { text: "No prep. Let's go!", target: "forcedScene"}
+    ]
+  },
+
+  status: {
+    title: "Status",
+    text: `You reflect on the subtleties in status in Keith Johnstone's book. The next exercise you or your partner must play high or low status. You lock eye contact and choose.`,
+    choices: [
+      { text: "It's uncomfortable, but you play the high status character", target: "playBigger" },
+      { text: "You can tell they want to be loud. You settle into the low status character", target: "metamorphicCircle" }
+    ]
+  },
+
+  improvShow: {
+    title: "See an Improv Show",
+    text: `You see your first improv show: Improvised Slasher. Dean (Heather), what a beguiling flight attendant/murderer!`,
+    choices: [
+      { text: "What fascinating character choices! Let's practice in class!", target: "characterPlay" },
+      { text: "Status plays such a large role!", target: "status" }
+    ]
+  },
+
+  vigil: {
+    title: "The Vigil",
+    text: `Whatever happens in Rome stays in Rome. Music, dancing, murder, treasure hunts, pregnancies extravaganza`,
+    choices: [
+      { text: "Wow everyone's so willing to play with each other.", target: "consecutiveCount" },
+      { text: "There are so many possibilities you can dream out of nothing", target: "setting" }
+    ]
+  },
+
+  metamorphicCircle: {
+    title: "Metamorphic Circle",
+    text: `Everyone spins in circles and laughs a lot. The favorite activity`,
+    choices: [
+      { text: "Class bonding is great! All walks of life, it's so much fun!", target: "consecutiveCount" },
+      { text: "Some people are so creative!", target: "characterPlay" }
+    ]
+  },
+
+  consecutiveCount:{
+    title: "That time we counted to 69",
+    text: `No notes.`,
+    choices: [
+      { text: "Aw, the class is so supportive. You decide to participate more", target: "trySmall" },
+      { text: "Ok, it's time for some scenes!", target: "forcedScene" }
+    ]
+  },
+
+  narration: {
+    title: "Narration",
+    text: `Once upon a time... One day... Because of this... And finally...`,
+    choices: [
+      { text: "Can I get a suggestion for a non-geographical location?", target: "setting" },
+      { text: "Huh, I wonder how the experts come up with stories?", target: "improvShow" }
+    ]
+  },
+
+  objectPlay: {
+    title: "Object Play",
+    text: `You practice picking up and putting down an imaginary can of soda. What a curious thing to do?`,
+    choices: [
+      { text: "This is so new and so fun! I wonder what we're doing next!", target: "vigil" },
+      { text: "World building can be so physical! How else can we build this world?", target: "setting" }
+    ]
+  },
+
+  setting: {
+    title: "Setting & Meaning",
+    text: `You realize your bare, undecorated dorm side could be so much more: posters, rugs, objects can hold meaning. The setting itself invites play.`,
+    choices: [
+      { text: "We now know how to setup a world. How do we fill it?", target: "playBigger" },
+      { text: "Keep it minimal: less distraction is better", target: "steadyEnd" }
+    ]
+  },
+
+  smallTalk: {
+    title: "Small Talk as Connection",
+    text: `You start treating small-talk as bids for connection rather than trivial. It is awkward at first, then surprisingly warm.`,
+    choices: [
+      { text: "Continue practicing: gratitude grows", target: "gratitude" },
+      { text: "Focus back on studies; what is there to talk about?", target: "balance" }
+    ]
+  },
+
+  balance: {
+    title: "Balance",
+    text: `School and internships are important, but you promise not to lose play. You decide to schedule more spontaneity, more yeses without worrying about a plan.`,
+    choices: [
+      { text: "Make a concrete plan and thank the class", target: "gratitude" },
+      { text: "No plan: let things happen organically", target: "steadyEnd" },
+    ]
+  },
+
+  promise: {
+    title: "A Promise",
+    text: `You make a small promise: try one 'Try This' every week, take three public small risks this quarter. You feel grateful.`,
+    choices: [
+      { text: "Thank Lisa and Heather", target: "gratitude" },
+      { text: "Reflect", target: "finalScene" }
+    ]
+  },
+
+  gratitude: {
+    title: "Gratitude",
+    text: `You thank your teacher and TA for the welcoming space. You are quietly proud that you took the class.`,
+    end: true
+  },
+
+  finalScene: {
+    title: "Final Scene",
+    text: `In the last days you're thrown into improvised scenes that require full presence. You feel awe at your classmates and a newfound appetite for play.`,
+    end: true
+  },
+
+  steadyEnd: {
+    title: "A Gentle Steady Ending",
+    text: `You leave the class with gentler growth: appreciation, new eyes for everyone around you, small experiments to try later.`,
+    end: true
+  }
+};
+
+
+let history = ["start"];
+const main = document.getElementById('scene');
+const progBar = document.getElementById('progBar');
+const backBtn = document.getElementById('backBtn');
+const restartBtn = document.getElementById('restartBtn');
+
+function render() {
+  const id = history[history.length-1];
+  const s = SCENES[id];
+  if(!s){ main.innerHTML = `<div class="scene-text">Scene not found: ${id}</div>`; return; }
+
+  const title = s.title ? `<h2 style="margin:0 0 8px 0">${s.title}</h2>` : "";
+  let html = `<div class="scene-text">${title}${s.text.replace(/\\n/g,"<br>")}</div>`;
+
+  if(s.end){
+    html += `<div style="margin-top:12px" class="choices"><div class="small">— End of path:</div></div>`;
+    main.innerHTML = html;
+  } else {
+    html += `<div class="choices">`;
+    s.choices.forEach((c, i) => {
+      html += `<button class="choice" data-idx="${i}">${i+1}. ${c.text}</button>`;
+    });
+    html += `</div>`;
+    main.innerHTML = html;
+    document.querySelectorAll('button.choice').forEach(b => b.addEventListener('click', () => {
+      const idx = Number(b.dataset.idx);
+      choose(idx);
+    }));
+  }
+
+  backBtn.disabled = history.length <= 1;
+  updateProgress();
+}
+
+function choose(idx){
+  const cur = history[history.length-1];
+  const scene = SCENES[cur];
+  const choice = scene.choices[idx];
+  if(!choice) return;
+  history.push(choice.target);
+  render();
+}
+
+function updateProgress(){
+  // crude progress: count unique scenes visited / total
+  const unique = Array.from(new Set(history)).length;
+  const total = Object.keys(SCENES).length;
+  const pct = Math.round((unique/total)*100);
+  progBar.style.width = pct + "%";
+}
+
+backBtn.addEventListener('click', ()=>{
+  if(history.length>1){ history.pop(); render(); }
+});
+
+restartBtn.addEventListener('click', ()=>{
+  history = ["start"]; render();
+});
+
+window.addEventListener('keydown', (e)=>{
+  if(e.key >= '1' && e.key <= '9'){
+    const idx = parseInt(e.key,10) - 1;
+    const cur = history[history.length-1];
+    const scene = SCENES[cur];
+    if(scene && scene.choices && scene.choices[idx]) choose(idx);
+  } else if(e.key === 'Backspace'){
+    if(history.length>1){ history.pop(); render(); }
+  }
+});
+
+render();
+</script>
+</body>
+</html>
